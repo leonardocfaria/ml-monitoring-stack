@@ -21,8 +21,9 @@ class DriftMonitor:
         self.window.append(np.asarray(x, dtype=float))
 
     def psi(self) -> list[float]:
-        """PSI per feature of the current window vs the reference (0 until the window has 50 rows)."""
-        if len(self.window) < 50:
+        """PSI per feature of the current window vs the reference. 0 until the window is full: PSI has a
+        small-sample bias of about (bins-1)/n (~0.18 at n=50, 10 bins), which would raise false drift alarms."""
+        if len(self.window) < self.window.maxlen:
             return [0.0] * len(self.edges)
         W = np.array(self.window)
         return [psi(r, np.histogram(W[:, j], e)[0] / len(W)) for j, (r, e) in enumerate(zip(self.ref, self.edges))]

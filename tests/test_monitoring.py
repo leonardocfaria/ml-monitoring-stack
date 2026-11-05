@@ -19,9 +19,11 @@ METRICS = {"model_request_latency_seconds", "model_predictions_total", "model_sc
 def test_drift_monitor_detects_shift_only():
     rng = np.random.default_rng(0)
     m = DriftMonitor(rng.normal(size=(5000, 2)))
-    assert m.psi() == [0.0, 0.0]  # not enough data yet
-    for x in rng.normal(size=(500, 2)):
+    for x in rng.normal(size=(499, 2)) + [5, 5]:
         m.add(x)
+    assert m.psi() == [0.0, 0.0]  # window not full yet: no estimate, even for wildly shifted rows
+    for x in rng.normal(size=(500, 2)):
+        m.add(x)  # replaces the 499 shifted rows
     assert max(m.psi()) < 0.1
     for x in rng.normal(size=(500, 2)) + [1.5, 0]:
         m.add(x)  # the window (500) now holds only shifted rows

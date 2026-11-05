@@ -36,7 +36,7 @@ def main(target="http://localhost:8000", per_phase=6000, rps=100) -> int:
         t.join()
     print("fired:", sorted(fired))
     ok = ("data-drift", "FeatureDrift") in fired and ("concept-drift", "ConceptDrift") in fired \
-        and not any(p == "normal" for p, _ in fired)
+        and not any(p == "normal" for p, _ in fired) and ("data-drift", "ConceptDrift") not in fired
     print("OK" if ok else "FAIL")
     return 0 if ok else 1
 

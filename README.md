@@ -50,6 +50,8 @@ replay.py ──POST /predict──► model service (FastAPI, sklearn LogisticR
 | `model_rolling_accuracy` | gauge | concept drift, from delayed ground truth |
 | `model_feedback_total` | counter | labels received |
 
+PSI is only reported once the 500-request window is full. On smaller windows PSI's small-sample bias (about 9/n with 10 bins) produced false alarms on clean traffic, a self-review finding. The gauge holds its last value if traffic stops.
+
 Why both drift signals: the replay's third phase changes P(y | x) but not P(x). PSI stays at about 0, so a monitor that watches only input distributions misses it; only labelled feedback catches it. The second phase is the opposite case: inputs shift while the model is still mostly right. In this run accuracy stayed above 0.75 during the data-drift phase.
 
 Tests (no Docker):
@@ -64,7 +66,7 @@ Data: seeded synthetic stream (4 features, logistic label); see `service/data.py
 
 ## Results (run here: Docker 29, Prometheus v3.5.0, Grafana 12.1.0, 4 vCPUs)
 - `docker compose up` brings all 3 services healthy in about 10 s.
-- `e2e_check.py`: `fired: [('concept-drift', 'ConceptDrift'), ('concept-drift', 'FeatureDrift'), ('data-drift', 'FeatureDrift')]` → **OK**.
+- `e2e_check.py`: `fired: [('concept-drift', 'ConceptDrift'), ('concept-drift', 'FeatureDrift'), ('data-drift', 'FeatureDrift')]` → **OK**. The check requires FeatureDrift in the data-drift phase, ConceptDrift in the concept phase, nothing in the normal phase, and no ConceptDrift during data drift.
   - Nothing fires during normal traffic.
   - FeatureDrift is still firing for a few seconds into the concept phase: the 500-event window and the scrape interval need time to clear.
 - Serving latency in the container is p50 ≈ 0.5 ms. The p95/p99 shown (~1 ms) are interpolated inside the 0.5-1 ms histogram bucket, so they are an upper-bound estimate, not a measurement.

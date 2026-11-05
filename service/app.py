@@ -21,6 +21,8 @@ PSI = Gauge("model_feature_psi", "PSI of the last 500 requests vs training data"
 ACCURACY = Gauge("model_rolling_accuracy", "Accuracy over the last 200 labelled predictions")
 FEEDBACK = Counter("model_feedback_total", "Ground-truth labels received")
 PSI_EVERY = 50  # recompute PSI every N predictions
+# predict/feedback are async with no awaits: they run one at a time on the event loop, so the shared
+# window, counters and pending dict need no locks (model inference is < 1 ms)
 state = {}
 
 
@@ -49,7 +51,7 @@ app = FastAPI(title="monitored-model", lifespan=lifespan)
 
 
 @app.post("/predict")
-def predict(req: PredictIn):
+async def predict(req: PredictIn):
     t = time.perf_counter()
     score = float(state["model"].predict_proba([req.features])[0, 1])
     label = int(score > 0.5)
@@ -71,7 +73,7 @@ def predict(req: PredictIn):
 
 
 @app.post("/feedback")
-def feedback(req: FeedbackIn):
+async def feedback(req: FeedbackIn):
     pred = state["pending"].pop(req.id, None)
     if pred is None:
         raise HTTPException(404, "unknown or already labelled prediction id")
